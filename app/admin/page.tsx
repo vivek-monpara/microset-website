@@ -96,18 +96,24 @@ export default function AdminDashboard() {
     try {
       setFetchError(null);
       const res = await fetch('/api/products');
-      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `Error ${res.status}`); }
-      setProducts(Array.isArray(await res.json()) ? await res.json() : []);
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error || `Error ${res.status}`);
+      }
+      const data = await res.json();
+      setProducts(Array.isArray(data) ? data : []);
     } catch (e) {
       setFetchError(e instanceof Error ? e.message : 'Failed to load');
       setProducts([]);
     } finally { setLoading(false); }
   };
 
-  // re-fetch cleanly
   const reload = async () => {
     const res = await fetch('/api/products');
-    if (res.ok) setProducts(Array.isArray(await res.json()) ? await res.json() : []);
+    if (res.ok) {
+      const data = await res.json();
+      setProducts(Array.isArray(data) ? data : []);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
