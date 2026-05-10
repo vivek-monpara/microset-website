@@ -7,6 +7,7 @@ const nextConfig = {
     unoptimized: true,
   },
   allowedDevOrigins: ['192.168.56.1'],
+  serverExternalPackages: ['otplib', 'qrcode'],
 }
 
 export default nextConfig
