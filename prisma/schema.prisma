@@ -20,8 +20,10 @@ model Product {
   title       String
   description String
   image       String?
+  images      String[]
   price       Float?
   category    String
+  featured    Boolean  @default(false)
   productCode String?
   sku         String?  @unique
   inStock     Boolean  @default(true)
@@ -30,4 +32,15 @@ model Product {
 
   @@index([category])
   @@index([createdAt])
+  @@index([featured])
+}
+
+model LoginAttempt {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  ip        String
+  attempts  Int      @default(0)
+  lockedUntil DateTime?
+  updatedAt DateTime @updatedAt
+
+  @@index([ip])
 }

@@ -7,11 +7,7 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
   try {
     const { id } = await params;
     const product = await prisma.product.findUnique({ where: { id } });
-
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
-
+    if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     return NextResponse.json(product);
   } catch (error) {
     console.error('Error fetching product:', error);
@@ -29,9 +25,11 @@ export async function PUT(request: NextRequest, { params }: { params: Params }) 
       data: {
         title: body.title,
         description: body.description,
-        image: body.image,
-        price: body.price,
+        image: body.images?.[0] || body.image || null,
+        images: body.images || [],
+        price: body.price ? parseFloat(body.price) : null,
         category: body.category,
+        featured: body.featured ?? false,
         productCode: body.productCode || null,
         sku: body.sku || null,
         inStock: body.inStock,

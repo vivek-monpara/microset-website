@@ -9,7 +9,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 gsap.registerPlugin(ScrollTrigger);
 
 export function FeaturedProducts() {
-  const { products, loading, error } = useProducts('Featured');
+  const { products, loading, error } = useProducts(undefined, { featured: true });
   const headingRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 

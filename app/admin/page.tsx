@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Trash2, Edit2, Plus, Upload } from 'lucide-react';
+import { Trash2, Edit2, Plus, Upload, X, Star } from 'lucide-react';
 import Image from 'next/image';
 import AdminNavbar from '@/components/AdminNavbar';
 
@@ -11,8 +11,10 @@ interface Product {
   title: string;
   description: string;
   image?: string;
+  images?: string[];
   price?: number;
   category: string;
+  featured?: boolean;
   productCode?: string;
   sku?: string;
   inStock: boolean;
@@ -25,6 +27,18 @@ interface Category {
   name: string;
 }
 
+const emptyForm = {
+  title: '',
+  description: '',
+  images: [] as string[],
+  price: '',
+  category: '',
+  productCode: '',
+  sku: '',
+  inStock: true,
+  featured: false,
+};
+
 export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -33,18 +47,8 @@ export default function AdminDashboard() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [imagePreview, setImagePreview] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    image: '',
-    price: '',
-    category: '',
-    productCode: '',
-    sku: '',
-    inStock: true,
-  });
+  const [formData, setFormData] = useState(emptyForm);
 
   useEffect(() => {
     fetchProducts();
@@ -98,6 +102,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           ...formData,
           price: formData.price ? parseFloat(formData.price) : null,
+          images: formData.images,
         }),
       });
 
@@ -131,56 +136,63 @@ export default function AdminDashboard() {
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
     setUploading(true);
     try {
-      const data = new FormData();
-      data.append('file', file);
-      const response = await fetch('/api/upload', { method: 'POST', body: data });
-      if (!response.ok) {
-        const err = await response.json();
-        alert(err.error || 'Upload failed');
-        return;
+      const uploaded: string[] = [];
+      for (const file of Array.from(files)) {
+        const data = new FormData();
+        data.append('file', file);
+        const response = await fetch('/api/upload', { method: 'POST', body: data });
+        if (!response.ok) {
+          const err = await response.json();
+          alert(err.error || 'Upload failed');
+          continue;
+        }
+        const { url } = await response.json();
+        uploaded.push(url);
       }
-      const { url } = await response.json();
-      setFormData((prev) => ({ ...prev, image: url }));
-      setImagePreview(url);
+      setFormData((prev) => ({ ...prev, images: [...prev.images, ...uploaded] }));
     } catch {
       alert('Image upload failed');
     } finally {
       setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
+  const removeImage = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+  };
+
   const handleEdit = (product: Product) => {
+    const imgs = product.images && product.images.length > 0
+      ? product.images
+      : product.image
+        ? [product.image]
+        : [];
     setFormData({
       title: product.title,
       description: product.description,
-      image: product.image || '',
+      images: imgs,
       price: product.price?.toString() || '',
       category: product.category,
       productCode: product.productCode || '',
       sku: product.sku || '',
       inStock: product.inStock,
+      featured: product.featured || false,
     });
-    setImagePreview(product.image || '');
     setEditingId(product.id);
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const resetForm = () => {
-    setFormData({
-      title: '',
-      description: '',
-      image: '',
-      price: '',
-      category: categories[0]?.name || '',
-      productCode: '',
-      sku: '',
-      inStock: true,
-    });
-    setImagePreview('');
+    setFormData({ ...emptyForm, category: categories[0]?.name || '' });
     setEditingId(null);
     setShowForm(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -193,7 +205,7 @@ export default function AdminDashboard() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold text-foreground">Product Management</h1>
           <Button
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => { setShowForm(!showForm); if (showForm) resetForm(); }}
             className="bg-primary hover:bg-primary/90 text-white gap-2"
           >
             <Plus className="w-4 h-4" />
@@ -206,68 +218,115 @@ export default function AdminDashboard() {
             <h2 className="text-2xl font-bold mb-6 text-foreground">
               {editingId ? 'Edit Product' : 'Add New Product'}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
+
+              {/* Title + Product Code */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="text"
-                  placeholder="Product Title"
+                  placeholder="Product Title *"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   required
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                 />
                 <input
                   type="text"
                   placeholder="Product Code (e.g. MJK-001)"
                   value={formData.productCode}
                   onChange={(e) => setFormData({ ...formData, productCode: e.target.value })}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                 />
               </div>
 
+              {/* Description */}
               <textarea
-                placeholder="Product Description"
+                placeholder="Product Description *"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 required
                 rows={3}
-                className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex flex-col gap-2">
-                  <div
-                    className="w-full border-2 border-dashed border-border rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    {imagePreview ? (
-                      <Image src={imagePreview} alt="Preview" width={80} height={80} className="object-cover rounded mb-1" unoptimized />
-                    ) : (
-                      <Upload className="w-6 h-6 text-muted-foreground mb-1" />
-                    )}
-                    <span className="text-xs text-muted-foreground text-center">
-                      {uploading ? 'Uploading...' : imagePreview ? 'Click to change' : 'Click to upload image'}
-                    </span>
-                  </div>
-                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                </div>
+              {/* Images */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Product Images ({formData.images.length} uploaded)
+                </label>
+                <div className="flex flex-wrap gap-3 mb-3">
+                  {formData.images.map((img, idx) => (
+                    <div key={idx} className="relative group w-24 h-24">
+                      <Image
+                        src={img}
+                        alt={`Image ${idx + 1}`}
+                        width={96}
+                        height={96}
+                        className="w-24 h-24 object-cover rounded-lg border border-border"
+                        unoptimized
+                      />
+                      {idx === 0 && (
+                        <span className="absolute top-1 left-1 bg-primary text-white text-[9px] font-bold px-1 rounded">
+                          MAIN
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeImage(idx)}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
 
+                  {/* Add image button */}
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-24 h-24 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                  >
+                    {uploading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
+                    ) : (
+                      <>
+                        <Upload className="w-5 h-5 text-muted-foreground mb-1" />
+                        <span className="text-[10px] text-muted-foreground text-center leading-tight px-1">
+                          Add Image
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <p className="text-xs text-muted-foreground">
+                  First image will be used as the main display image. You can add multiple images.
+                </p>
+              </div>
+
+              {/* Price + Category */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="number"
-                  placeholder="Price (₹)"
+                  placeholder="Price ₹ (optional — won't be shown publicly)"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                   step="0.01"
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                 />
-
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   required
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                 >
-                  <option value="">Select Category</option>
+                  <option value="">Select Category *</option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.name}>{cat.name}</option>
                   ))}
@@ -280,18 +339,33 @@ export default function AdminDashboard() {
                 </p>
               )}
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="inStock"
-                  checked={formData.inStock}
-                  onChange={(e) => setFormData({ ...formData, inStock: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <label htmlFor="inStock" className="text-foreground">In Stock</label>
+              {/* Checkboxes */}
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="inStock"
+                    checked={formData.inStock}
+                    onChange={(e) => setFormData({ ...formData, inStock: e.target.checked })}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  <span className="text-foreground text-sm font-medium">In Stock</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="featured"
+                    checked={formData.featured}
+                    onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  <Star className="w-4 h-4 text-amber-500" />
+                  <span className="text-foreground text-sm font-medium">Featured on Homepage</span>
+                </label>
               </div>
 
-              <div className="flex gap-4 pt-4">
+              <div className="flex gap-4 pt-2">
                 <Button type="submit" disabled={uploading} className="bg-primary hover:bg-primary/90 text-white">
                   {editingId ? 'Update Product' : 'Create Product'}
                 </Button>
@@ -316,44 +390,72 @@ export default function AdminDashboard() {
             <table className="w-full">
               <thead className="bg-muted border-b border-border">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Title</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Code</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Category</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Price</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Stock</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Actions</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Image</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Title</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Code</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Category</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Featured</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Stock</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
-                  <tr key={product.id} className="border-b border-border hover:bg-muted/50">
-                    <td className="px-6 py-4 text-sm text-foreground">{product.title}</td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground font-mono">{product.productCode || '-'}</td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">{product.category}</td>
-                    <td className="px-6 py-4 text-sm text-foreground">
-                      {product.price ? `₹${product.price.toFixed(2)}` : '-'}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${product.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {product.inStock ? 'In Stock' : 'Out of Stock'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm flex gap-2">
-                      <button
-                        onClick={() => handleEdit(product)}
-                        className="flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                      >
-                        <Edit2 className="w-4 h-4" /> Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" /> Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {products.map((product) => {
+                  const thumb = (product.images && product.images[0]) || product.image;
+                  return (
+                    <tr key={product.id} className="border-b border-border hover:bg-muted/50">
+                      <td className="px-4 py-3">
+                        {thumb ? (
+                          <Image
+                            src={thumb}
+                            alt={product.title}
+                            width={48}
+                            height={48}
+                            className="w-12 h-12 object-cover rounded-lg border border-border"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-muted rounded-lg border border-border flex items-center justify-center text-[10px] text-muted-foreground">
+                            No img
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-foreground font-medium">{product.title}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{product.productCode || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{product.category}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {product.featured ? (
+                          <span className="flex items-center gap-1 text-amber-600 font-medium">
+                            <Star className="w-3.5 h-3.5 fill-amber-500" /> Yes
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${product.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {product.inStock ? 'In Stock' : 'Out'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEdit(product)}
+                            className="flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-xs font-medium"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" /> Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(product.id)}
+                            className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors text-xs font-medium"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {products.length === 0 && (

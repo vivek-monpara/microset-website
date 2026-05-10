@@ -5,15 +5,18 @@ interface Product {
   title: string;
   description: string;
   image?: string;
+  images?: string[];
   price?: number;
   category: string;
+  featured?: boolean;
+  productCode?: string;
   sku?: string;
   inStock: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export function useProducts(category?: string) {
+export function useProducts(category?: string, options?: { featured?: boolean; limit?: number }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,9 +26,9 @@ export function useProducts(category?: string) {
       try {
         setLoading(true);
         const url = new URL('/api/products', window.location.origin);
-        if (category) {
-          url.searchParams.append('category', category);
-        }
+        if (category) url.searchParams.append('category', category);
+        if (options?.featured) url.searchParams.append('featured', 'true');
+        if (options?.limit) url.searchParams.append('limit', String(options.limit));
 
         const response = await fetch(url.toString());
         if (!response.ok) {
@@ -44,7 +47,7 @@ export function useProducts(category?: string) {
     };
 
     fetchProducts();
-  }, [category]);
+  }, [category, options?.featured, options?.limit]);
 
   return { products, loading, error };
 }
