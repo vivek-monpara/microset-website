@@ -83,16 +83,14 @@ export default async function ProductPage({ params }: { params: Params }) {
 
             {/* Bullet features — short version for right column */}
             {bulletFeatures && (
-              <div className="border border-gray-200 rounded-lg p-4">
-                <ul className="flex flex-col gap-2">
-                  {bulletFeatures.map((f, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                      <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: '#0F52BA' }} />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <ul className="flex flex-col gap-2 py-1">
+                {bulletFeatures.map((f, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                    <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: '#0F52BA' }} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
             )}
 
             {/* CTA buttons */}
