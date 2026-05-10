@@ -35,6 +35,12 @@ model Product {
   @@index([featured])
 }
 
+model Setting {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  key   String @unique
+  value String
+}
+
 model LoginAttempt {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   ip        String

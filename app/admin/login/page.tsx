@@ -55,7 +55,9 @@ export default function AdminLogin() {
               {show2FA ? '2-Factor Auth' : 'Admin Access'}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {show2FA ? 'Enter the 6-digit code from your authenticator app' : 'MICROSET — Product Management'}
+              {show2FA
+                ? 'Enter the 6-digit code from your authenticator app'
+                : 'MICROSET — Product Management'}
             </p>
           </div>
 
@@ -106,8 +108,11 @@ export default function AdminLogin() {
             </Button>
 
             {show2FA && (
-              <button type="button" onClick={() => { setShow2FA(false); setToken(''); setError(''); }}
-                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <button
+                type="button"
+                onClick={() => { setShow2FA(false); setToken(''); setError(''); }}
+                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
                 ← Back
               </button>
             )}

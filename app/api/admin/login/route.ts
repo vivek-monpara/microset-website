@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticator } from 'otplib';
+import { prisma } from '@/lib/prisma';
 
-// In-memory rate limiting (resets on server restart, good enough for hobby)
 const attempts = new Map<string, { count: number; lockedUntil: number }>();
-
 const MAX_ATTEMPTS = 5;
-const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+const LOCK_DURATION_MS = 15 * 60 * 1000;
 
 function getIP(request: NextRequest) {
   return (
@@ -20,7 +19,6 @@ export async function POST(request: NextRequest) {
     const ip = getIP(request);
     const now = Date.now();
 
-    // Check rate limit
     const record = attempts.get(ip) || { count: 0, lockedUntil: 0 };
     if (record.lockedUntil > now) {
       const minutesLeft = Math.ceil((record.lockedUntil - now) / 60000);
@@ -38,7 +36,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
     }
 
-    // Check password
     if (password !== adminPassword) {
       record.count += 1;
       if (record.count >= MAX_ATTEMPTS) {
@@ -53,26 +50,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check TOTP if secret is configured
+    // Check if 2FA has been configured in the database
     if (totpSecret) {
-      if (!token) {
-        return NextResponse.json({ error: 'Authenticator code required', require2fa: true }, { status: 401 });
-      }
-      const isValid = authenticator.verify({ token, secret: totpSecret });
-      if (!isValid) {
-        record.count += 1;
-        if (record.count >= MAX_ATTEMPTS) {
-          record.lockedUntil = now + LOCK_DURATION_MS;
-          record.count = 0;
+      const setting = await prisma.setting.findUnique({ where: { key: 'totp_configured' } });
+      const is2FAActive = setting?.value === 'true';
+
+      if (is2FAActive) {
+        // 2FA is active — require TOTP token
+        if (!token) {
+          return NextResponse.json({ error: 'Authenticator code required', require2fa: true }, { status: 401 });
         }
-        attempts.set(ip, record);
-        return NextResponse.json({ error: 'Invalid authenticator code', require2fa: true }, { status: 401 });
+        const isValid = authenticator.verify({ token, secret: totpSecret });
+        if (!isValid) {
+          record.count += 1;
+          if (record.count >= MAX_ATTEMPTS) {
+            record.lockedUntil = now + LOCK_DURATION_MS;
+            record.count = 0;
+          }
+          attempts.set(ip, record);
+          return NextResponse.json({ error: 'Invalid authenticator code. Try again.', require2fa: true }, { status: 401 });
+        }
       }
+      // If 2FA is NOT yet configured, allow login with just password
+      // so admin can get in and complete setup at /admin/setup-2fa
     }
 
-    // Success — clear rate limit
+    // Success
     attempts.delete(ip);
-
     const response = NextResponse.json({ success: true });
     response.cookies.set('admin_session', adminPassword, {
       httpOnly: true,
