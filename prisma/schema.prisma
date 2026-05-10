@@ -24,6 +24,7 @@ model Product {
   price       Float?
   category    String
   featured    Boolean  @default(false)
+  features    String[]
   productCode String?
   sku         String?  @unique
   inStock     Boolean  @default(true)

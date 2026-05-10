@@ -12,6 +12,7 @@ interface Product {
   description: string;
   image?: string;
   images?: string[];
+  features?: string[];
   price?: number;
   category: string;
   featured?: boolean;
@@ -31,6 +32,7 @@ const emptyForm = {
   title: '',
   description: '',
   images: [] as string[],
+  features: [] as string[],
   price: '',
   category: '',
   productCode: '',
@@ -49,6 +51,7 @@ export default function AdminDashboard() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState(emptyForm);
+  const [featureInput, setFeatureInput] = useState('');
 
   useEffect(() => {
     fetchProducts();
@@ -179,6 +182,7 @@ export default function AdminDashboard() {
       title: product.title,
       description: product.description,
       images: imgs,
+      features: product.features || [],
       price: product.price?.toString() || '',
       category: product.category,
       productCode: product.productCode || '',
@@ -186,6 +190,7 @@ export default function AdminDashboard() {
       inStock: product.inStock,
       featured: product.featured || false,
     });
+    setFeatureInput('');
     setEditingId(product.id);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -193,9 +198,21 @@ export default function AdminDashboard() {
 
   const resetForm = () => {
     setFormData({ ...emptyForm, category: categories[0]?.name || '' });
+    setFeatureInput('');
     setEditingId(null);
     setShowForm(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const addFeature = () => {
+    const trimmed = featureInput.trim();
+    if (!trimmed) return;
+    setFormData((prev) => ({ ...prev, features: [...prev.features, trimmed] }));
+    setFeatureInput('');
+  };
+
+  const removeFeature = (idx: number) => {
+    setFormData((prev) => ({ ...prev, features: prev.features.filter((_, i) => i !== idx) }));
   };
 
   return (
@@ -248,6 +265,48 @@ export default function AdminDashboard() {
                 rows={3}
                 className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
               />
+
+              {/* Key Features / Highlights */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Key Features / Highlights ({formData.features.length} added)
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    placeholder="e.g. Hardened steel construction"
+                    value={featureInput}
+                    onChange={(e) => setFeatureInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFeature(); } }}
+                    className="flex-1 px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={addFeature}
+                    className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-1"
+                  >
+                    <Plus className="w-4 h-4" /> Add
+                  </button>
+                </div>
+                {formData.features.length > 0 && (
+                  <ul className="space-y-1.5">
+                    {formData.features.map((f, idx) => (
+                      <li key={idx} className="flex items-center gap-2 bg-white border border-border rounded-lg px-3 py-2 text-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                        <span className="flex-1 text-foreground">{f}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeFeature(idx)}
+                          className="text-muted-foreground hover:text-red-500 transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">Press Enter or click Add. These show as bullet points on the product page.</p>
+              </div>
 
               {/* Images */}
               <div>

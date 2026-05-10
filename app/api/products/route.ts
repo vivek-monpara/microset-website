@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
         price: body.price ? parseFloat(body.price) : null,
         category: body.category,
         featured: body.featured || false,
+        features: body.features || [],
         productCode: body.productCode || null,
         sku: body.sku || null,
         inStock: body.inStock ?? true,

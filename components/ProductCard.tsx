@@ -17,11 +17,11 @@ export function ProductCard({ id, image, title, description, index = 0 }: Produc
 
       {/* Image */}
       <Link href={`/products/${id}`} className="block relative overflow-hidden" style={{ backgroundColor: '#F7F3EE' }}>
-        <div className="aspect-square overflow-hidden">
+        <div className="aspect-square overflow-hidden flex items-center justify-center p-4">
           <img
             src={image}
             alt={title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
           />
         </div>
         <div className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md">
